@@ -15,9 +15,12 @@ namespace DR
         public float controllerSpeed = 7;
 
         public Transform target;
+        public EnemyTarget lockOnTarget;
+        public Transform lockOnTransform;
 
         [HideInInspector] public Transform pivot;
         [HideInInspector] public Transform camTrans;
+        StateManager states;
 
         float turnSmoothing = 0.1f;
         public float minAngle = -35f;
@@ -30,6 +33,8 @@ namespace DR
         [SerializeField] float lookAngle;
         [SerializeField] float tiltAngle;
 
+        bool useRightAxis;
+
         private void Awake()
         {
             if (singleton != null)
@@ -40,9 +45,10 @@ namespace DR
             singleton = this;
         }
 
-        public void Init(Transform p_target)
+        public void Init(StateManager state)
         {
-            target = p_target;
+            states = state;
+            target = state.transform;
 
             camTrans = Camera.main.transform;
             pivot = camTrans.parent;
@@ -57,6 +63,33 @@ namespace DR
             float cntrl_V = Input.GetAxis("RightAxis Y");
 
             float targetSpeed = mouseSpeed;
+
+            if (lockOnTarget != null)
+            {
+                if (lockOnTransform == null)
+                {
+                    lockOnTransform = lockOnTarget.GetTarget();
+                    states.lockOnTransform = lockOnTransform;
+                }
+
+                if (Mathf.Abs(cntrl_H) > 0.6f)
+                {
+                    if (!useRightAxis)
+                    {
+                        lockOnTransform = lockOnTarget.GetTarget(cntrl_H > 0);
+                        states.lockOnTransform = lockOnTransform;
+                        useRightAxis = true;
+                    }
+                }
+            }
+
+            if (useRightAxis)
+            {
+                if(Mathf.Abs(cntrl_H) < 0.6f)
+                {
+                    useRightAxis = false;
+                }
+            }
 
             if (cntrl_H != 0 || cntrl_V != 0)
             {
@@ -90,19 +123,29 @@ namespace DR
                 smoothY = v;
             }
 
-            if (lockOn)
-            {
-
-            }
-
-            lookAngle += smoothX * targetSpeed;
-            transform.rotation = Quaternion.Euler(0, lookAngle, 0);
-
             tiltAngle -= smoothY * targetSpeed;
             tiltAngle = Mathf.Clamp(tiltAngle, minAngle, maxAngle);
 
             pivot.localRotation = Quaternion.Euler(tiltAngle, 0, 0);
+            lookAngle += smoothX * targetSpeed;
 
+            if (lockOn && lockOnTarget != null)
+            {
+                Vector3 targetDir = lockOnTransform.position - transform.position;
+                targetDir.Normalize();
+                targetDir.y = 0;
+
+                if (targetDir == Vector3.zero)
+                    targetDir = transform.forward;
+
+                Quaternion targetRot = Quaternion.LookRotation(targetDir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, d * 9);
+                lookAngle = transform.eulerAngles.y;
+
+                return;
+            }
+
+            transform.rotation = Quaternion.Euler(0, lookAngle, 0);
         }
     }
 

@@ -20,6 +20,9 @@ namespace DR
         float lt_axis;
         bool lt_input;
 
+        bool leftAxis_down;
+        bool rightAxis_down;
+
         StateManager states;
         CameraManager cameraManager;
 
@@ -30,7 +33,7 @@ namespace DR
             states.Init();
 
             cameraManager = CameraManager.singleton;
-            cameraManager.Init(transform);
+            cameraManager.Init(states);
         }
 
         void Update()
@@ -70,6 +73,8 @@ namespace DR
 
             rb_input = Input.GetButton("RB");
             lb_input = Input.GetButton("LB");
+
+            rightAxis_down = Input.GetButtonUp("L");
         }
 
         void UpdateStates() {
@@ -83,7 +88,9 @@ namespace DR
 
             states.moveAmount = Mathf.Clamp01(m);
 
-            states.isRunning = (b_input && (states.moveAmount > 0));
+            states.rollInput = b_input;
+
+            // states.isRunning = (b_input && (states.moveAmount > 0));
 
             states.rt = rt_input;
             states.rb = rb_input;
@@ -94,6 +101,18 @@ namespace DR
             {
                 states.isTwoHanded = !states.isTwoHanded;
                 states.HangleTwoHanded();
+            }
+
+            if (rightAxis_down)
+            {
+                states.isLockOn = !states.isLockOn;
+
+                if (states.lockOnTarget == null)
+                    states.isLockOn = false;
+
+                cameraManager.lockOnTarget = states.lockOnTarget;
+                states.lockOnTransform = cameraManager.lockOnTransform;
+                cameraManager.lockOn = states.isLockOn;
             }
         }
     } 
